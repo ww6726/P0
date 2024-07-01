@@ -8,6 +8,7 @@ typedef unsigned long long uint64;
 
 #define MASK 4294967295 //2^32-1
 #define PRIME 2305843009213693951 //2^61-1
+
 namespace prime_field_small
 {
 	

@@ -16,7 +16,7 @@
 
 
 #define MASK 4294967295 //2^32-1
-#define PRIME 2305843009213693951 //2^61-1
+#define PRIME 18446744069414584321 //2^61-1
 typedef unsigned long long uint64;
 #define ALICE 0
 #define BOB 1
@@ -93,6 +93,8 @@ prime_field::field_element** oneD_to_2D(prime_field::field_element* input,int si
 }
 void prover::get_matrices( prime_field::field_element** A_from_verifier, prime_field::field_element** B_from_verifier, int matrix_size_from_verifier)
 {
+
+
 	//MPC
 	matrix_size = matrix_size_from_verifier;
 	//split matrices into shares
@@ -126,27 +128,6 @@ void prover::get_matrices( prime_field::field_element** A_from_verifier, prime_f
 		A = A_share_2;
 		B = B_share_2;
 	}
-	
-
-	// //single
-	// matrix_size = matrix_size_from_verifier;
-	// A = A_from_verifier;
-	// B = B_from_verifier;
-
-	// for(int i =0;i<matrix_size;i++){
-	// 	for(int j =0;j<matrix_size;j++){
-	// 		cout<<A[i][j].to_gmp_class()<<" ";
-	// 	}
-	// 	cout<<""<<endl;
-	// }
-	// 	cout<<"========================="<<endl;
-
-	// for(int i =0;i<matrix_size;i++){
-	// 	for(int j =0;j<matrix_size;j++){
-	// 		cout<<B[i][j].to_gmp_class()<<" ";
-	// 	}
-	// 	cout<<""<<endl;
-	// }
 
 }
 //fix this later
@@ -345,53 +326,41 @@ prime_field::field_element prover::merge_proof(prime_field::field_element share)
 }
 prime_field::field_element* prover::merge_proofs(prime_field::field_element* share,int n)
 {	
+	//
+	if(prover_id==0){
+		vector<prime_field::field_element> share_1 = recv_datas(clients[0],n);
+		vector<prime_field::field_element> share_2 = recv_datas(clients[1],n);
+		prime_field::field_element* share_merge = new prime_field::field_element[n];
+		vector<prime_field::field_element> share_merge_network(n);
 
-	//network
-	vector<prime_field::field_element> share_1 = recv_datas(clients[0],n);
-	vector<prime_field::field_element> share_2 = recv_datas(clients[1],n);
-	prime_field::field_element* share_merge = new prime_field::field_element[n];
-	vector<prime_field::field_element> share_merge_network(n);
+		for(int i=0;i<n;i++){
+			share_merge[i] = share[i]+share_1[i]+share_2[i];
+			share_merge_network[i] = share_merge[i];
+		}
+		send_datas(share_merge_network, clients[0]);
+		send_datas(share_merge_network, clients[1]);
 
-	for(int i=0;i<n;i++){
-		share_merge[i] = share[i]+share_1[i]+share_2[i];
-		share_merge_network[i] = share_merge[i];
+		return share_merge;
+	}else{
+		vector<prime_field::field_element> shares(n);
+		for(int i=0;i<n;i++){
+			shares[i] = share[i];
+		}
+
+		send_datas(shares, client);
+		auto res_merged = recv_datas(client,n);
+
+		prime_field::field_element* share_merge = new prime_field::field_element[n];
+		for(int i=0;i<n;i++){
+			share_merge[i] = res_merged[i];
+		}
+
+		return share_merge;
 	}
 
-	send_datas(share_merge_network, clients[0]);
-	send_datas(share_merge_network, clients[1]);
-
-	return share_merge;
-}
-
-prime_field::field_element prover::merge_WAN(prime_field::field_element share)
-{
-	// Receive and send integers
-    prime_field::field_element receivedDataFromP2;
-	prime_field::field_element receivedDataFromP3;
 	
-	communication_total += sizeof(share);
-	cout<<sizeof(share)<<endl;
-	cout<<sizeof(prime_field::field_element)<<endl;
-	exit(1);
-    if (recv(clientSocket1, &receivedDataFromP2, sizeof(receivedDataFromP2), 0) == -1) {
-        std::cerr << "Error receiving data from client 1\n";
-    }
-	if (recv(clientSocket2, &receivedDataFromP3, sizeof(receivedDataFromP3), 0) == -1) {
-        std::cerr << "Error receiving data from client 2\n";
-    }
-	prime_field::field_element sum = share + receivedDataFromP2 + receivedDataFromP3;
-    prime_field::field_element sentData = sum;
-
-    if (send(clientSocket1, &sentData, sizeof(sentData), 0) == -1) {
-        std::cerr << "Error sending data to client 1\n";
-    }
-
-    if (send(clientSocket2, &sentData, sizeof(sentData), 0) == -1) {
-        std::cerr << "Error sending data to client 2\n";
-    }
-
-	return sum;
 }
+
 prime_field::field_element prover::merge(prime_field::field_element share)
 {	
 
@@ -405,6 +374,7 @@ prime_field::field_element prover::merge(prime_field::field_element share)
 }
 prime_field::field_element* prover::merge_vector_proof(prime_field::field_element* share, int n)
 {
+
 	prime_field::field_element* res = new prime_field::field_element[n];
 	// for(int i =0;i<n;i++){
 	// 	res[i] = merge_proof(share[i]);
@@ -440,11 +410,11 @@ prime_field::field_element* prover::read_MPSPDZ_output(MPSPDZ_CMD cmd,int size)
 
 	string file_dir;
 	if(prover_id == ALICE){
-		file_dir += "Player-Data/Output_0";
+		file_dir += "Player-Data/OutputShare_0";
 	}else if(prover_id == BOB){
-		file_dir += "Player-Data/Output_1";
+		file_dir += "Player-Data/OutputShare_1";
 	}else{
-		file_dir += "Player-Data/Output_2";
+		file_dir += "Player-Data/OutputShare_2";
 	}
     std::ifstream outputFile(file_dir);
 	// if (!outputFile) {
@@ -505,31 +475,30 @@ prime_field::field_element* prover::read_MPSPDZ_output(MPSPDZ_CMD cmd,int size)
 
 
 
+	// //split the output into shares
+	// if(cmd == MPSPDZ_CMD::matmul){
+	// 	prime_field::field_element rand = 1;
+	// 	if(prover_id== ALICE){
+	// 		for(int i =0;i<matrix_size*matrix_size;i++){
+	// 			output_flat[i] = rand;
 
-	//split the output into shares
-	if(cmd == MPSPDZ_CMD::matmul){
-		prime_field::field_element rand = 1;
-		if(prover_id== ALICE){
-			for(int i =0;i<matrix_size*matrix_size;i++){
-				output_flat[i] = rand;
+	// 		}
+	// 	}else if(prover_id== BOB){
+	// 		for(int i =0;i<matrix_size*matrix_size;i++){
+	// 			output_flat[i] =  rand;
 
-			}
-		}else if(prover_id== BOB){
-			for(int i =0;i<matrix_size*matrix_size;i++){
-				output_flat[i] =  rand;
-
-			}
-		}else{
-			for(int i =0;i<matrix_size*matrix_size;i++){
-				output_flat[i] = (output_flat[i]) - rand - rand;
-			}
-		}
+	// 		}
+	// 	}else{
+	// 		for(int i =0;i<matrix_size*matrix_size;i++){
+	// 			output_flat[i] = (output_flat[i]) - rand - rand;
+	// 		}
+	// 	}
 		
-	// print_vector(output_flat,matrix_size*matrix_size);
-	// exit(1);
-	}else if(cmd == MPSPDZ_CMD::merge){
+	// // print_vector(output_flat,matrix_size*matrix_size);
+	// // exit(1);
+	// }else if(cmd == MPSPDZ_CMD::merge){
 		
-	}
+	// }
 
 	dir = "../Libra_single/implementation/tests/matmul";
 	chdir(dir.c_str());
@@ -545,66 +514,45 @@ void prover::generate_MPSPDZ_cmd_and_run(MPSPDZ_CMD cmd_type, int merge_size)
 	string run_cmd;
 	string matrix_size_str;
 	string merge_size_str;
-	// switch (cmd_type) {
-    //     case MPSPDZ_CMD::matmul:
-	// 		matrix_size_str = std::to_string(matrix_size);
-	// 		compile_cmd = "./compile.py benchmark_matmul MATMUL " +matrix_size_str + " " + matrix_size_str + " " + "1 "+ matrix_size_str;
-	// 		if(prover_id == ALICE){
-	// 			run_cmd = "./lowgear-party.x -p 0 -N 3 -F -ip HOST benchmark_matmul-MATMUL-"+matrix_size_str+"-"+matrix_size_str+"-"+"1-"+matrix_size_str;
 
-	// 		}else if(prover_id == BOB){
-	// 			run_cmd = "./lowgear-party.x -p 1 -N 3 -F -ip HOST benchmark_matmul-MATMUL-"+matrix_size_str+"-"+matrix_size_str+"-"+"1-"+matrix_size_str;
-
-	// 		}else{
-	// 			run_cmd = "./lowgear-party.x -p 2 -N 3 -F -ip HOST benchmark_matmul-MATMUL-"+matrix_size_str+"-"+matrix_size_str+"-"+"1-"+matrix_size_str;
-
-	// 		}
-	// 		compile_cmd += " > /dev/null 2>&1";//run this without showing output
-	// 		run_cmd += "> /dev/null 2>&1";//run this without showing output
-    //         break;
-    //     case MPSPDZ_CMD::merge:
-	// 		 merge_size_str= std::to_string(merge_size);
-	// 		compile_cmd = "./compile.py merge " +merge_size_str;
-	// 		if(prover_id == ALICE){
-	// 			run_cmd = "./lowgear-party.x -p 0 -N 3 -F -ip HOST merge-"+merge_size_str;
-	// 		}else if(prover_id == BOB){
-	// 			run_cmd = "./lowgear-party.x -p 1 -N 3 -F -ip HOST merge-"+merge_size_str;
-	// 		}else{
-	// 			run_cmd = "./lowgear-party.x -p 2 -N 3 -F -ip HOST merge-"+merge_size_str;
-	// 		}
-	// 		compile_cmd += " > /dev/null 2>&1";//run this without showing output
-	// 		run_cmd += " > /dev/null 2>&1";//run this without showing output
-    //         break;
-        
-    // }
 
 	switch (cmd_type) {
         case MPSPDZ_CMD::matmul:
 			matrix_size_str = std::to_string(matrix_size);
-			compile_cmd = "python3 compile.py rescu_bench_vmatmult 1" +matrix_size_str;
+			// compile_cmd = "python3 compile.py rescu_bench_vmatmult 1" +matrix_size_str;
+			compile_cmd = "python3 compile.py test" +matrix_size_str;
 
 			if(prover_id == ALICE){
-				run_cmd = "./lowgear-party.x -p 0 -N 3 -F -ip HOST rescu_bench_vmatmult-1-"+matrix_size_str;
-
+				run_cmd = "./lowgear-party.x -p 0 -N 3 -F -ip HOST -P 18446744069414584321 rescu_bench_vmatmult-1-"+matrix_size_str;
+				run_cmd = "./lowgear-party.x -p 0 -N 3 -F -ip HOST -P 18446744069414584321 test-"+matrix_size_str;
+				
 			}else if(prover_id == BOB){
-				run_cmd = "./lowgear-party.x -p 1 -N 3 -F -ip HOST rescu_bench_vmatmult-1-"+matrix_size_str;
+				run_cmd = "./lowgear-party.x -p 1 -N 3 -F -ip HOST -P 18446744069414584321 rescu_bench_vmatmult-1-"+matrix_size_str;
+				run_cmd = "./lowgear-party.x -p 1 -N 3 -F -ip HOST -P 18446744069414584321 test-"+matrix_size_str;
 
 			}else{
-				run_cmd = "./lowgear-party.x -p 2 -N 3 -F -ip HOST rescu_bench_vmatmult-1-"+matrix_size_str;
+				run_cmd = "./lowgear-party.x -p 2 -N 3 -F -ip HOST -P 18446744069414584321 rescu_bench_vmatmult-1-"+matrix_size_str;
+				run_cmd = "./lowgear-party.x -p 2 -N 3 -F -ip HOST -P 18446744069414584321 test-"+matrix_size_str;
 
 			}
 			compile_cmd += " > /dev/null 2>&1";//run this without showing output
 			run_cmd += "> /dev/null 2>&1";//run this without showing output
             break;
         case MPSPDZ_CMD::merge:
-			 merge_size_str= std::to_string(merge_size);
+	 		merge_size_str= std::to_string(merge_size);
 			compile_cmd = "./compile.py merge " +merge_size_str;
 			if(prover_id == ALICE){
-				run_cmd = "./lowgear-party.x -p 0 -N 3 -F -ip HOST merge-"+merge_size_str;
+				run_cmd = "./lowgear-party.x -p 0 -N 3 -F -ip HOST -P 18446744069414584321 merge-"+merge_size_str;
+				// run_cmd = "./lowgear-party.x -p 0 -N 3 -ip HOST -lgp 61 merge-"+merge_size_str;
+
 			}else if(prover_id == BOB){
-				run_cmd = "./lowgear-party.x -p 1 -N 3 -F -ip HOST merge-"+merge_size_str;
+				run_cmd = "./lowgear-party.x -p 1 -N 3 -F -ip HOST -P 18446744069414584321 merge-"+merge_size_str;
+				// run_cmd = "./lowgear-party.x -p 1 -N 3 -ip HOST -lgp 61 merge-"+merge_size_str;
+
 			}else{
-				run_cmd = "./lowgear-party.x -p 2 -N 3 -F -ip HOST merge-"+merge_size_str;
+				run_cmd = "./lowgear-party.x -p 2 -N 3 -F -ip HOST -P 18446744069414584321 merge-"+merge_size_str;
+				// run_cmd = "./lowgear-party.x -p 2 -N 3 -ip HOST -lgp 61 merge-"+merge_size_str;
+
 			}
 			compile_cmd += " > /dev/null 2>&1";//run this without showing output
 			run_cmd += " > /dev/null 2>&1";//run this without showing output
@@ -695,8 +643,9 @@ prime_field::field_element* prover::matmul(prime_field::field_element** A, prime
 	prime_field::field_element* B_flat = twoD_to_1D(B,matrix_size,matrix_size);
 	
 
-	prime_field::field_element* A_merge_flat = merge_vector(A_flat,matrix_size*matrix_size);
-	prime_field::field_element* B_merge_flat = merge_vector(B_flat,matrix_size*matrix_size);
+	prime_field::field_element* A_merge_flat = merge_vector_proof(A_flat,matrix_size*matrix_size);
+	prime_field::field_element* B_merge_flat = merge_vector_proof(B_flat,matrix_size*matrix_size);
+
 
 	prime_field::field_element** A_merge = oneD_to_2D(A_merge_flat,matrix_size*matrix_size,matrix_size,matrix_size);
 	prime_field::field_element** B_merge = oneD_to_2D(B_merge_flat,matrix_size*matrix_size,matrix_size,matrix_size);
@@ -712,21 +661,18 @@ prime_field::field_element* prover::matmul(prime_field::field_element** A, prime
 prime_field::field_element** prover::matrix_multiplication()
 {	
 
-
+	// 
 	//MPC
+	int matrix_size_flat = matrix_size*matrix_size;
 	std::chrono::high_resolution_clock::time_point t0 = std::chrono::high_resolution_clock::now();
 	prime_field::field_element* result_flat_mpc = new prime_field::field_element[matrix_size*matrix_size];
+
+
 	result_flat_mpc = matmul(A,B);
-	int matrix_size_flat = matrix_size*matrix_size;
-	print_vector(result_flat_mpc,matrix_size_flat);
-	exit(1);
-	
-	// prime_field::field_element one(1);
-	// merge_setup();
-	// prime_field::field_element merged = merge_WAN(one);
-	// cout<<merged.to_gmp_class()<<endl;
-	// merge_WAN(one);
-	// merge_WAN(one);
+	// result_flat_mpc = merge_vector_proof(result_flat_mpc,matrix_size_flat);
+	// print_vector(result_flat_mpc,matrix_size_flat);
+	// exit(1);
+		
 
 	prime_field::field_element** result_mpc = new prime_field::field_element*[matrix_size];
 	int idx = 0;
@@ -736,24 +682,10 @@ prime_field::field_element** prover::matrix_multiplication()
 		for (int j = 0; j < matrix_size; ++j)
 		{
 			result_mpc[i][j] = result_flat_mpc[idx++];
-			// cout<<result_mpc[i][j].to_gmp_class()<<" ";
 		}
-		// cout<<""<<endl;
 	}
-	//SINGLE
-	// prime_field::field_element** result = new prime_field::field_element*[matrix_size];
-	// for (int i = 0; i < matrix_size; ++i)
-	// {
-	// 	result[i] = new prime_field::field_element[matrix_size];
-	// 	for (int j = 0; j < matrix_size; ++j)
-	// 	{
-	// 		result[i][j] = 0;
-	// 		for (int k = 0; k < matrix_size; ++k)
-	// 		{
-	// 			result[i][j] = result[i][j] + (A[i][k]*B[k][j]);
-	// 		}
-	// 	}
-	// }
+
+
 	std::chrono::high_resolution_clock::time_point t1 = std::chrono::high_resolution_clock::now();
 	std::chrono::duration<double> time_span = std::chrono::duration_cast<std::chrono::duration<double>>(t1 - t0);
 	std::cerr << "matrix multiplication time: " << time_span.count() << " seconds." << std::endl;
@@ -774,36 +706,7 @@ prime_field::field_element** prover::matrix_multiplication()
 	// std::chrono::duration<double> time_span_table = std::chrono::duration_cast<std::chrono::duration<double>>(t_table_initialize_t1 - t_table_initialize_t0);
 	// std::cerr << "Initialize bookkeeping table time: " << time_span_table.count() << " seconds." << std::endl;
 
-	// //print output
-	// cout<<"============A=============="<<endl;
-	// for (int i = 0; i < matrix_size; ++i)
-	// {
-	// 	for (int j = 0; j < matrix_size; ++j)
-	// 	{
-	// 		cout<<A[i][j].to_gmp_class()<<" ";
-	// 	}
-	// 	cout<<""<<endl;
-	// }
-	// cout<<"============B=============="<<endl;
-	// for (int i = 0; i < matrix_size; ++i)
-	// {
-	// 	for (int j = 0; j < matrix_size; ++j)
-	// 	{
-	// 		cout<<B[i][j].to_gmp_class()<<" ";
-	// 	}
-	// 	cout<<""<<endl;
-	// }
-	// cout<<"============C=============="<<endl;
-	// for (int i = 0; i < matrix_size; ++i)
-	// {
-	// 	for (int j = 0; j < matrix_size; ++j)
-	// 	{
-	// 		cout<<result[i][j].to_gmp_class()<<" ";
-	// 	}
-	// 	cout<<""<<endl;
-	// }
-	// cout<<""<<endl;
-	
+
 	return result_mpc;
 }
 double* prover::do_something(){
@@ -835,25 +738,7 @@ prime_field::field_element* prover::evaluate()
 		v = C.circuit[0].gates[g].v;
 		ty = C.circuit[0].gates[g].ty;
 		assert(ty == 3 || ty == 2);
-		// //single
-		// circuit_value[0][g] = prime_field::field_element(u);
-
-		//3mpc
-		// prime_field::field_element Share1 = rand;
-		// prime_field::field_element Share2 = rand;
-		// prime_field::field_element Share3= prime_field::field_element(u) - rand - rand;
-        // if(prover_id==ALICE){//alice
-        //     circuit_value[0][g] = Share1;
-
-        // }else if(prover_id==BOB){//bob
-        //     circuit_value[0][g] = Share2;
-
-        // }
-        // else{
-        //     circuit_value[0][g] = Share3;
-        // }
-
-        //2mpc
+	
         prime_field::field_element Share1 = rand;
         prime_field::field_element Share2 = rand;
         prime_field::field_element Share3 = prime_field::field_element(u) - rand - rand;
@@ -1024,6 +909,7 @@ void prover::init_array_matrix(int max_bit_length)
 	C_poly = new linear_poly[(1<<max_bit_length)];
 	bit_length_matrix = max_bit_length;
 	total_uv_matrix = 1<<(bit_length_matrix/2);
+
 }
 
 void prover::init_array(int max_bit_length)
@@ -1070,7 +956,10 @@ prover::~prover()
 }
 void prover::sumcheck_phase1_init_matrix()
 {
+
+
 	std::chrono::high_resolution_clock::time_point t0 = std::chrono::high_resolution_clock::now();
+
 
 	int half_length = bit_length_matrix/2;
 	int fl = bit_length_matrix;
@@ -1079,7 +968,6 @@ void prover::sumcheck_phase1_init_matrix()
 	{
 		for (int b = 0; b < (1<<(fl-i-1)); ++b)
 		{
-			// cout<<toBinary(b)<<" "<<toBinary(b+(1<<(fl-i-1)))<<endl;
 			 A_poly[b] = A_poly[b].b*one_minus_g[i] + A_poly[b + (1<<(fl-i-1))].b*g[i];
 		}
 	}
@@ -1090,34 +978,20 @@ void prover::sumcheck_phase1_init_matrix()
 		{
 			for (int j = 0; j < (1<<l); ++j)
 			{
-			 // cout<<toBinary( b + (j*(1<<(i))))<<" "<<toBinary(b + (j*(1<<(i+1))))<<" "<<toBinary(b + (1<<i) + j*(1<<(i+1)))<<endl;
 				B_poly[b+(j*(1<<i))].b = B_poly[b + (j*(1<<(i+1)))].b*one_minus_h[i] + B_poly[b + (1<<i) + j*(1<<(i+1))].b*h[i];
 			}
-
-			// B_poly[b].b = B_poly[(1<<(l-i))*b].b*one_minus_h[i] + B_poly[(1<<(l-i))*b + (1<<(l-i-1))].b*g[i];
 		}
 	}
-
-	// cout<<"==============A=============="<<endl;
-	// for (int i = 0; i < (1<<bit_length_matrix); ++i)
-	// {
-	// 	cout<<A_poly[i].b.to_gmp_class()<<" ";
-	// }
-	// cout<<""<<endl;
+	
 	// cout<<"==============B=============="<<endl;
-	// for (int i = 0; i < (1<<bit_length_matrix); ++i)
-	// {
-	// 	cout<<B_poly[i].b.to_gmp_class()<<" ";
+	// prime_field::field_element* B_poly_vector = new prime_field::field_element[(1<<bit_length_matrix)];
+	// for(int i = 0;i<(1<<bit_length_matrix);i++){
+	// 	B_poly_vector[i] = B_poly[i].b;
 	// }
-	// cout<<""<<endl;
+	// B_poly_vector = merge_vector_proof(B_poly_vector,(1<<bit_length_matrix));
+	// print_vector(B_poly_vector,(1<<bit_length_matrix));
+	// exit(1);
 
-	// cout<<"==============C=============="<<endl;
-	// for (int i = 0; i < (1<<bit_length_matrix); ++i)
-	// {
-	// 	cout<<C_poly[i].b.to_gmp_class()<<" ";
-	// }
-	// cout<<""<<endl;
-	// cout<<"============================"<<endl;
 
 	std::chrono::high_resolution_clock::time_point t1 = std::chrono::high_resolution_clock::now();
 	std::chrono::duration<double> time_span = std::chrono::duration_cast<std::chrono::duration<double>>(t1 - t0);
@@ -1343,12 +1217,6 @@ quadratic_poly prover::sumcheck_phase1_update_matrix(prime_field::field_element 
 			B_poly[i].a.value = (B_poly[g_one].a.value * previous_random.value + B_poly[g_one].b.value - B_poly[i].b.value + prime_field::mod) % prime_field::mod;
 
 		}
-	
-
-		// //single
-		// ret.a = (ret.a + A_poly[i].a * B_poly[i].a);
-		// ret.b = (ret.b + A_poly[i].a * B_poly[i].b + A_poly[i].b * B_poly[i].a);
-		// ret.c = (ret.c + A_poly[i].b * B_poly[i].b);
 
 		//mpc
 		A_a[i] = A_poly[i].a;
@@ -1389,7 +1257,7 @@ quadratic_poly prover::sumcheck_phase1_update_matrix(prime_field::field_element 
 	combine_merge[0] = ret.a;
 	combine_merge[1] = ret.b;
 	combine_merge[2] = ret.c;
-	prime_field::field_element* ret_all = merge_vector(combine_merge,3);
+	prime_field::field_element* ret_all = merge_vector_proof(combine_merge,3);
 
 	ret.a =  ret_all[0];
 	ret.b =  ret_all[1];
@@ -1405,7 +1273,11 @@ quadratic_poly prover::sumcheck_phase1_update_matrix(prime_field::field_element 
 	ret.a.value = (ret.a.value + prime_field::mod) % prime_field::mod;
 	ret.b.value = (ret.b.value + prime_field::mod) % prime_field::mod;
 	ret.c.value = (ret.c.value + prime_field::mod) % prime_field::mod;
-
+		
+	// cout<<ret.a.to_gmp_class()<<endl;
+	// cout<<ret.b.to_gmp_class()<<endl;
+	// cout<<ret.c.to_gmp_class()<<endl;
+	// exit(1);
 
 	std::chrono::high_resolution_clock::time_point t1 = std::chrono::high_resolution_clock::now();
 	std::chrono::duration<double> time_span = std::chrono::duration_cast<std::chrono::duration<double>>(t1 - t0);
@@ -1461,15 +1333,7 @@ quadratic_poly prover::sumcheck_phase1_update(prime_field::field_element previou
 
 		}
 
-		
-
-		// //single
-		// ret.a.value = (ret.a.value + add_mult_sum[i].a.value * V_mult_add[i].a.value) % prime_field::mod;
-		// ret.b.value = (ret.b.value + add_mult_sum[i].a.value * V_mult_add[i].b.value + add_mult_sum[i].b.value * V_mult_add[i].a.value
-		// 							+ addV_array[i].a.value) % prime_field::mod;
-		// ret.c.value = (ret.c.value + add_mult_sum[i].b.value * V_mult_add[i].b.value
-		// 							+ addV_array[i].b.value) % prime_field::mod;
-
+	
 		//vectorized mpc
 		add_mult_sum_a[i] = add_mult_sum[i].a; 
 		add_mult_sum_b[i] = add_mult_sum[i].b; 

@@ -8,21 +8,53 @@
 #include <gmp.h>
 #include <gmpxx.h>
 #include <vector>
-typedef unsigned long long uint64;
 
+typedef unsigned long long uint64;
+struct uint128 {
+    uint64_t hi;
+    uint64_t low;
+
+    uint128() : hi(0), low(0) {}
+    uint128(uint64_t high, uint64_t low) : hi(high), low(low) {}
+};
 namespace prime_field
 {
+
 	void init(std::string, int);
 	void init_random();
-	
+	void print_128(uint128 input);
+	uint128 operator <<(const uint128& lhs, int shift);
+ 	uint128 operator >>(const uint128& lhs, int shift);
+	uint128 operator %(const uint128& lhs, const uint128& rhs);
+
+	uint64 to64b(const uint128& input);
+	uint128 to128b(const uint64& input);
+	uint128 operator - (const uint128& a, const uint128& b);
+	uint128 operator + (const uint128& a, const uint128& b);
+	uint128 operator * (const uint128& a, const uint128& b);
+
+
+	bool operator>(const uint128& lhs, const uint128& rhs);
+	bool operator>(const uint128& lhs, const uint128& rhs);
+	bool operator==(const uint128& lhs, const uint128& rhs);
+ 	bool operator<=(const uint128& lhs, const uint128& rhs);
+	bool operator>=(const uint128& lhs, const uint128& rhs);
+
+
+
+	uint64_t operator % (uint128 number, uint64_t divisor);
+	uint128 mult(uint64_t a, uint64_t b);
+	uint64 mod_add(uint64 a, uint64 b, uint64 mod);
 	extern uint64 mod;
+
 
 	class u64b
 	{
 	private:
 	public:
-		uint64 value_64;
+	
 
+		uint64 value_64;
 		u64b();
 		u64b(const int &b);
 		u64b(const unsigned long long &b);
@@ -44,6 +76,8 @@ namespace prime_field
 	private:
 	public:
 		u64b value;
+		u64b hi;
+		u64b low;
 		mpz_class to_gmp_class();
 
 		field_element();
@@ -65,6 +99,7 @@ namespace prime_field
 		int bitLen();
 		bool operator != (const field_element &b) const;
 		std::vector<bool> bit_stream();
+		void print();
 	};
 	field_element random();
 

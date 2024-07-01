@@ -7,6 +7,11 @@
 
 #include <iostream>
 #include <cassert>
+
+#include <ifaddrs.h>
+#include <arpa/inet.h>
+#include <netdb.h>  // Add this line for NI_MAXHOST
+
 using namespace std;
 verifier v;
 prover p;
@@ -86,7 +91,19 @@ void inference()
 	
 	
 }
+int client_setup(string ip){
+// Client setup
+    int clientSocket = socket(AF_INET, SOCK_STREAM, 0);
+    sockaddr_in serverAddr;
+    memset(&serverAddr, 0, sizeof(serverAddr));
+    serverAddr.sin_family = AF_INET;
+    serverAddr.sin_port = htons(12345);
+    serverAddr.sin_addr.s_addr = inet_addr("172.22.0.2"); // Replace with the server's IP address
 
+    // Connect to the server
+    connect(clientSocket, (struct sockaddr*)&serverAddr, sizeof(serverAddr));
+    return clientSocket;
+}
 
 pair<int, vector<int>> server_setup(){
      // Server setup
@@ -138,11 +155,28 @@ vector<prime_field::field_element> recv_field(int client, int n)
     recv(client, &received_data, sizeof(prime_field::field_element)*n, 0);
     return received_data;
 }
+
 int main(int argc, char** argv)
 {
+    std::string p0_ip;
+	std::ifstream file("../../../../MP-SPDZ/HOST");  // Adjust the path to point to the correct location
+    if (!file) {
+        std::cerr << "Error opening file!" << std::endl;
+        return 1;
+    }
 
+    if (std::getline(file, p0_ip)) {  // Read the first line
+        std::cout << "First line: " << p0_ip << std::endl;
+    } else {
+        std::cerr << "Error reading the first line!" << std::endl;
+        return 1;
+    }
+
+    file.close();  // Close the file
+
+	
 	// prime_field::init("16798108731015832284940804142231733909759579603404752749028378864165570215949", 10);
-	prime_field::init("2305843009213693951", 10);
+	prime_field::init("18446744069414584321", 10);
 	p.total_time = 0;
 	int id = atoi(argv[1]);
 	p.prover_id = id;
@@ -161,15 +195,23 @@ int main(int argc, char** argv)
 
 	
 
-	
+	//setup 
+	if(id ==0){
+		//P0 setup
+		pair<int,vector<int>> server_clients = server_setup();
+		p.server = server_clients.first;
+		p.clients = server_clients.second;
+	}else{
+		//P1 - Pn setup
+		p.client = client_setup(p0_ip);
+	}
 
-	//setup server
-	pair<int,vector<int>> server_clients = server_setup();
-	p.server = server_clients.first;
-	p.clients = server_clients.second;
 
 
-    v.read_input_matrices(128);
+
+
+
+    v.read_input_matrices(16);
     p.get_matrices(v.A,v.B,v.matrix_size);
     bool result_mat_mul = v.verify_matrix();
     printf("%s\n", result_mat_mul ? "Pass" : "Fail");

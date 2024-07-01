@@ -740,6 +740,13 @@ prime_field::field_element verifier::relay_gate(const int depth)
 		ret.value = ret.value + prime_field::mod;
 	return ret;
 }
+void print_vector2(prime_field::field_element* input, int size)
+{
+	for(int i =0;i<size;i++){
+		cout<<input[i].to_gmp_class()<<" ";
+	}
+	cout<<""<<endl;
+}
 bool verifier::verify_matrix()
 {
 	float proof_size = 0;
@@ -782,7 +789,9 @@ bool verifier::verify_matrix()
 
 		// //mpc 
 	int output_size = matrix_size*matrix_size;
-	result_flat = p->merge_vector(result_flat,output_size);
+	result_flat = p->merge_vector_proof(result_flat,output_size);
+	// print_vector2(result_flat,output_size);
+	// exit(1);
 
 	prime_field::field_element sum = p -> V_res(one_minus_gh, gh, result_flat, bit_length*2, (1<<(bit_length*2)));
 	proof_size = proof_size + sizeof(sum);
@@ -790,12 +799,14 @@ bool verifier::verify_matrix()
 	p->sumcheck_phase1_init_matrix();
 	prime_field::field_element *r = generate_randomness(bit_length);
 	prime_field::field_element previous_random = prime_field::field_element(0);
+
 	for (int i = 0; i < (bit_length); ++i)
 	{
 		quadratic_poly poly = p -> sumcheck_phase1_update_matrix(previous_random, i);
 		std::chrono::high_resolution_clock::time_point t0 = std::chrono::high_resolution_clock::now();
 		proof_size = proof_size + sizeof(poly);
 		previous_random = r[i];
+
 
 		if(poly.eval(0) + poly.eval(1)!=sum)
 		{

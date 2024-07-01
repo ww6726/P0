@@ -22,6 +22,7 @@ public:
 	//mpc
 	int server;
 	vector<int> clients;
+	int client;
 	int clientSocket1,clientSocket2;
 	int prover_id;
 	int communication_total=0;
