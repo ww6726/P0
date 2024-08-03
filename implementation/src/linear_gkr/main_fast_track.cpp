@@ -98,7 +98,7 @@ int client_setup(string ip){
     memset(&serverAddr, 0, sizeof(serverAddr));
     serverAddr.sin_family = AF_INET;
     serverAddr.sin_port = htons(8080);
-    serverAddr.sin_addr.s_addr = inet_addr("172.22.0.2"); // Replace with the server's IP address
+    serverAddr.sin_addr.s_addr = inet_addr(ip.c_str()); // Replace with the server's IP address
 
     // Connect to the server
     connect(clientSocket, (struct sockaddr*)&serverAddr, sizeof(serverAddr));

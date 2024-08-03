@@ -8,6 +8,7 @@
 #include <gmp.h>
 #include <gmpxx.h>
 #include <vector>
+#include <stdint.h> // Include this header for uint64_t
 
 typedef unsigned long long uint64;
 struct uint128 {
