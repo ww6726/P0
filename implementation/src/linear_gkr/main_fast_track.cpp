@@ -97,7 +97,7 @@ int client_setup(string ip){
     sockaddr_in serverAddr;
     memset(&serverAddr, 0, sizeof(serverAddr));
     serverAddr.sin_family = AF_INET;
-    serverAddr.sin_port = htons(12345);
+    serverAddr.sin_port = htons(8080);
     serverAddr.sin_addr.s_addr = inet_addr("172.22.0.2"); // Replace with the server's IP address
 
     // Connect to the server
@@ -112,7 +112,7 @@ pair<int, vector<int>> server_setup(){
     sockaddr_in serverAddr;
     memset(&serverAddr, 0, sizeof(serverAddr));
     serverAddr.sin_family = AF_INET;
-    serverAddr.sin_port = htons(12345);
+    serverAddr.sin_port = htons(8080);
     serverAddr.sin_addr.s_addr = INADDR_ANY;
 
     int reuse = 1;
